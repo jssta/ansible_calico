@@ -1,0 +1,36 @@
+---
+## init setup k8s for Master node only
+
+- name: Check if Kubernetes cluster is already initialized
+  stat:
+    path: /home/vagrant/.kube/config
+  register: cluster_initialized
+
+- name: Initialize the Kubernetes cluster using kubeadm
+  command: kubeadm init --apiserver-advertise-address="192.168.50.10" --apiserver-cert-extra-sans="192.168.50.10" --pod-network-cidr=192.168.0.0/16
+  when: not cluster_initialized.stat.exists
+
+- name: Create kube directory
+  file:
+    path: /home/vagrant/.kube
+    state: directory
+
+- name: Setup kubeconfig for vagrant user
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /home/vagrant/.kube/config
+    remote_src: yes
+    owner: vagrant
+    group: vagrant
+    mode: '0644'
+
+
+## install calico 
+- name: Download calico.conf
+  get_url:
+    url: https://raw.githubusercontent.com/projectcalico/calico/v3.27.2/manifests/calico.yaml
+    dest: /home/vagrant/calico.yaml
+
+- name: Install calico CNI
+  become: false
+  command: kubectl apply -f calico.yaml
